@@ -1,0 +1,1309 @@
+openapi: 3.1.0
+info:
+  title: Sallybraids API
+  version: 1.0.0
+  description: |
+    REST API for Sallybraids salon booking system.
+    
+    This API provides endpoints for:
+    - Customer booking management
+    - Service catalog management
+    - Availability and calendar management
+    - Media uploads
+    - Business settings
+    
+    ## Authentication
+    Most endpoints require JWT authentication via Bearer token in the Authorization header.
+    Customer booking creation (POST /api/bookings) does NOT require authentication.
+    
+    ## Deposit Payment Flow
+    1. Customer creates booking via POST /api/bookings
+    2. API returns `clientSecret` for Stripe Payment Element
+    3. Frontend initializes Stripe with the client secret
+    4. Customer completes payment
+    5. Webhook updates booking status to `deposit_paid`
+    
+  contact:
+    name: Sallybraids
+    email: obaapasally@yahoo.com
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.sallybraids.ca
+    description: Production server
+  - url: https://staging-api.sallybraids.ca
+    description: Staging server
+  - url: http://localhost:3000
+    description: Local development server
+
+tags:
+  - name: Auth
+    description: Authentication endpoints
+  - name: Services
+    description: Service catalog management
+  - name: Bookings
+    description: Booking and appointment management
+  - name: Availability
+    description: Calendar availability and blocks
+  - name: Media
+    description: Image and file uploads
+  - name: Settings
+    description: Business settings and configuration
+
+paths:
+  /api/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Admin login
+      description: Authenticate admin user and receive JWT access token
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: admin@sallybraids.ca
+                password:
+                  type: string
+                  format: password
+                  example: securepassword123
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                    description: JWT access token (expires in 24h)
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  refreshToken:
+                    type: string
+                    description: JWT refresh token (expires in 30d)
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  expiresIn:
+                    type: integer
+                    description: Token expiration time in seconds
+                    example: 86400
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Refresh access token
+      description: Exchange refresh token for new access token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  expiresIn:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/services:
+    get:
+      tags:
+        - Services
+      summary: List all services
+      description: Get complete service catalog
+      operationId: getServices
+      responses:
+        '200':
+          description: Service list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Service'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    
+    post:
+      tags:
+        - Services
+      summary: Create new service
+      description: Add a new service to the catalog (admin only)
+      operationId: createService
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceInput'
+      responses:
+        '201':
+          description: Service created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/services/{id}:
+    get:
+      tags:
+        - Services
+      summary: Get service by ID
+      operationId: getServiceById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: smedium-bohemian-fulani
+      responses:
+        '200':
+          description: Service retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    
+    put:
+      tags:
+        - Services
+      summary: Update service
+      description: Update an existing service (admin only)
+      operationId: updateService
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceInput'
+      responses:
+        '200':
+          description: Service updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    
+    delete:
+      tags:
+        - Services
+      summary: Delete service
+      description: Remove a service from the catalog (admin only)
+      operationId: deleteService
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Service deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/bookings:
+    get:
+      tags:
+        - Bookings
+      summary: List all bookings
+      description: Get all bookings with optional filters (admin only)
+      operationId: getBookings
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+          example: '2025-01-01'
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+          example: '2025-12-31'
+        - name: serviceId
+          in: query
+          schema:
+            type: string
+          example: smedium-bohemian-fulani
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - deposit_pending
+              - deposit_paid
+              - completed
+              - cancelled
+              - no_show
+          example: deposit_paid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Bookings retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bookings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Booking'
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      total:
+                        type: integer
+                      totalPages:
+                        type: integer
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    
+    post:
+      tags:
+        - Bookings
+      summary: Create new booking
+      description: |
+        Customer creates a new booking. This endpoint does NOT require authentication.
+        Returns a Stripe client secret for payment processing.
+      operationId: createBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingInput'
+      responses:
+        '201':
+          description: Booking created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/bookings/{id}:
+    get:
+      tags:
+        - Bookings
+      summary: Get booking by ID
+      description: Retrieve detailed booking information (admin only)
+      operationId: getBookingById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: booking-1234567890
+      responses:
+        '200':
+          description: Booking retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    
+    patch:
+      tags:
+        - Bookings
+      summary: Update booking
+      description: Update booking status or details (admin only)
+      operationId: updateBooking
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - deposit_pending
+                    - deposit_paid
+                    - completed
+                    - cancelled
+                    - no_show
+                internalNotes:
+                  type: string
+                  description: Admin-only notes (not visible to customer)
+              example:
+                status: deposit_paid
+                internalNotes: Deposit received via e-transfer
+      responses:
+        '200':
+          description: Booking updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/availability:
+    get:
+      tags:
+        - Availability
+      summary: Get availability for date range
+      description: |
+        Get availability information. If `date` parameter is provided, returns time slots for that date.
+        Otherwise, returns blackout dates for the next 90 days.
+      operationId: getAvailability
+      parameters:
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+          example: '2025-11-15'
+          description: Specific date to get time slots for (YYYY-MM-DD)
+      responses:
+        '200':
+          description: Availability retrieved successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/DayAvailability'
+                  - $ref: '#/components/schemas/BlackoutDates'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+
+  /api/availability/blocks:
+    get:
+      tags:
+        - Availability
+      summary: List all blocks
+      description: Get all blackout dates and time blocks (admin only)
+      operationId: getBlocks
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Blocks retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Block'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    
+    post:
+      tags:
+        - Availability
+      summary: Create availability block
+      description: Block a date or time slot (admin only)
+      operationId: createBlock
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlockInput'
+      responses:
+        '201':
+          description: Block created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Block'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/availability/blocks/{id}:
+    delete:
+      tags:
+        - Availability
+      summary: Delete block
+      description: Remove a blackout date or time block (admin only)
+      operationId: deleteBlock
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Block deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/media/logo:
+    post:
+      tags:
+        - Media
+      summary: Upload logo
+      description: Upload or update business logo (admin only)
+      operationId: uploadLogo
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - logo
+              properties:
+                logo:
+                  type: string
+                  format: binary
+                  description: Logo image file (JPG, PNG, max 5MB)
+      responses:
+        '200':
+          description: Logo uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '413':
+          $ref: '#/components/responses/FileTooLargeError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+
+  /api/media/service-image:
+    post:
+      tags:
+        - Media
+      summary: Upload service image
+      description: Upload a service image (admin only)
+      operationId: uploadServiceImage
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: Service image file (JPG, PNG, max 10MB)
+                serviceId:
+                  type: string
+                  description: Optional service ID to associate image with
+      responses:
+        '200':
+          description: Image uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '413':
+          $ref: '#/components/responses/FileTooLargeError'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaTypeError'
+
+  /api/settings:
+    get:
+      tags:
+        - Settings
+      summary: Get business settings
+      description: Retrieve current business settings (public information does not require auth)
+      operationId: getSettings
+      responses:
+        '200':
+          description: Settings retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+    
+    put:
+      tags:
+        - Settings
+      summary: Update business settings
+      description: Update business configuration (admin only)
+      operationId: updateSettings
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsInput'
+      responses:
+        '200':
+          description: Settings updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token obtained from /api/auth/login
+
+  schemas:
+    Service:
+      type: object
+      required:
+        - id
+        - title
+        - category
+        - duration
+        - price
+      properties:
+        id:
+          type: string
+          description: Unique service identifier (slug)
+          example: smedium-bohemian-fulani
+        title:
+          type: string
+          description: Service display name
+          example: Smedium Bohemian Fulani
+        category:
+          type: string
+          description: Service category
+          enum:
+            - Bohemian Barbie
+            - Knotless & Twists
+            - Fulani & Extras
+            - Men's Styles
+          example: Bohemian Barbie
+        duration:
+          type: string
+          description: Service duration (human-readable)
+          example: 8h 30m
+        price:
+          type: number
+          format: float
+          description: Service price in CAD
+          example: 250.00
+        img:
+          type: string
+          description: Image URL or path
+          example: /images/services/bohemian-fulani.jpg
+        notes:
+          type: array
+          items:
+            type: string
+          description: Service notes and requirements
+          example:
+            - SELECT
+            - Human and braiding hair NOT included
+            - Base length is lower back
+            - DO NOT BOOK AFTER 8AM
+        displayOrder:
+          type: integer
+          description: Sort order for display
+          example: 1
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ServiceInput:
+      type: object
+      required:
+        - title
+        - category
+        - duration
+        - price
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        category:
+          type: string
+          enum:
+            - Bohemian Barbie
+            - Knotless & Twists
+            - Fulani & Extras
+            - Men's Styles
+        duration:
+          type: string
+          pattern: '^(\d+h)?(\s?\d+m)?$'
+          example: 8h 30m
+        price:
+          type: number
+          format: float
+          minimum: 0
+        img:
+          type: string
+          maxLength: 500
+        notes:
+          type: array
+          items:
+            type: string
+            maxLength: 500
+        displayOrder:
+          type: integer
+
+    Booking:
+      type: object
+      required:
+        - id
+        - serviceId
+        - serviceTitle
+        - date
+        - time
+        - customer
+        - status
+        - amountDue
+        - depositAmount
+      properties:
+        id:
+          type: string
+          example: booking-1234567890
+        serviceId:
+          type: string
+          example: smedium-bohemian-fulani
+        serviceTitle:
+          type: string
+          example: Smedium Bohemian Fulani
+        date:
+          type: string
+          format: date
+          example: '2025-11-15'
+        time:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+          example: '09:00'
+        customer:
+          type: object
+          required:
+            - name
+            - phone
+            - email
+          properties:
+            name:
+              type: string
+              example: Jane Doe
+            phone:
+              type: string
+              example: '+1 (555) 123-4567'
+            email:
+              type: string
+              format: email
+              example: jane.doe@example.com
+        notes:
+          type: string
+          description: Customer notes/requests
+          example: Please use synthetic hair, I have my own beads
+        status:
+          type: string
+          enum:
+            - deposit_pending
+            - deposit_paid
+            - completed
+            - cancelled
+            - no_show
+          example: deposit_paid
+        amountDue:
+          type: number
+          format: float
+          description: Total service amount in CAD
+          example: 250.00
+        depositAmount:
+          type: number
+          format: float
+          description: Deposit amount in CAD
+          example: 87.50
+        depositPercent:
+          type: number
+          format: float
+          description: Deposit percentage used
+          example: 35
+        stripePaymentIntentId:
+          type: string
+          description: Stripe Payment Intent ID
+          example: pi_3AbcDefGhi
+        internalNotes:
+          type: string
+          description: Admin-only notes (not visible to customer)
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BookingInput:
+      type: object
+      required:
+        - serviceId
+        - date
+        - time
+        - customer
+      properties:
+        serviceId:
+          type: string
+        date:
+          type: string
+          format: date
+        time:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        customer:
+          type: object
+          required:
+            - name
+            - phone
+            - email
+          properties:
+            name:
+              type: string
+              minLength: 1
+              maxLength: 200
+            phone:
+              type: string
+              pattern: '^\+?[\d\s\-\(\)]+$'
+            email:
+              type: string
+              format: email
+        notes:
+          type: string
+          maxLength: 2000
+        depositPercent:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Override default deposit percentage
+          example: 35
+
+    BookingResponse:
+      type: object
+      required:
+        - bookingId
+        - status
+        - amountDue
+        - depositAmount
+        - clientSecret
+      properties:
+        bookingId:
+          type: string
+          example: booking-1234567890
+        status:
+          type: string
+          example: deposit_pending
+        amountDue:
+          type: number
+          format: float
+          example: 250.00
+        depositAmount:
+          type: number
+          format: float
+          example: 87.50
+        clientSecret:
+          type: string
+          description: Stripe Payment Intent client secret for frontend
+          example: pi_3AbcDefGhi_secret_XyzAbc123
+
+    DayAvailability:
+      type: object
+      required:
+        - date
+        - slots
+      properties:
+        date:
+          type: string
+          format: date
+          example: '2025-11-15'
+        slots:
+          type: array
+          items:
+            type: object
+            required:
+              - time
+              - available
+            properties:
+              time:
+                type: string
+                pattern: '^\d{2}:\d{2}$'
+                example: '09:00'
+              available:
+                type: boolean
+                example: true
+              label:
+                type: string
+                example: '9:00 AM'
+
+    BlackoutDates:
+      type: object
+      properties:
+        blackoutDates:
+          type: array
+          items:
+            type: string
+            format: date
+          example:
+            - '2025-12-25'
+            - '2026-01-01'
+
+    Block:
+      type: object
+      required:
+        - id
+        - date
+        - type
+      properties:
+        id:
+          type: string
+          example: block-1234567890
+        date:
+          type: string
+          format: date
+          example: '2025-12-25'
+        type:
+          type: string
+          enum:
+            - blackout
+            - lunch
+            - personal
+          example: blackout
+        startTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+          description: Optional start time for partial-day blocks
+          example: '12:00'
+        endTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+          description: Optional end time for partial-day blocks
+          example: '13:00'
+        notes:
+          type: string
+          maxLength: 500
+          example: Holiday closure
+        createdAt:
+          type: string
+          format: date-time
+
+    BlockInput:
+      type: object
+      required:
+        - date
+        - type
+      properties:
+        date:
+          type: string
+          format: date
+        type:
+          type: string
+          enum:
+            - blackout
+            - lunch
+            - personal
+        startTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        endTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        notes:
+          type: string
+          maxLength: 500
+
+    Settings:
+      type: object
+      properties:
+        business:
+          type: object
+          properties:
+            name:
+              type: string
+              example: Sallybraids
+            phone:
+              type: string
+              example: '+1 (514) 969-7169'
+            email:
+              type: string
+              format: email
+              example: obaapasally@yahoo.com
+            location:
+              type: string
+              example: Toronto, ON
+            instagram:
+              type: string
+              example: '@sallybraids_'
+            tiktok:
+              type: string
+              example: '@sallybraids_'
+        deposit:
+          type: object
+          properties:
+            percent:
+              type: number
+              format: float
+              minimum: 0
+              maximum: 100
+              example: 35
+            minimum:
+              type: number
+              format: float
+              minimum: 0
+              example: 15
+        hours:
+          type: object
+          properties:
+            open:
+              type: string
+              pattern: '^\d{2}:\d{2}$'
+              example: '07:00'
+            close:
+              type: string
+              pattern: '^\d{2}:\d{2}$'
+              example: '19:00'
+            daysOpen:
+              type: array
+              items:
+                type: string
+                enum:
+                  - monday
+                  - tuesday
+                  - wednesday
+                  - thursday
+                  - friday
+                  - saturday
+                  - sunday
+              example:
+                - monday
+                - tuesday
+                - wednesday
+                - thursday
+                - friday
+                - saturday
+                - sunday
+        policies:
+          type: object
+          properties:
+            cancellationHours:
+              type: integer
+              description: Hours notice required for cancellation
+              example: 48
+            lateArrivalMinutes:
+              type: integer
+              description: Grace period for late arrivals
+              example: 15
+
+    SettingsInput:
+      type: object
+      properties:
+        business:
+          type: object
+          properties:
+            name:
+              type: string
+              minLength: 1
+              maxLength: 200
+            phone:
+              type: string
+            email:
+              type: string
+              format: email
+            location:
+              type: string
+            instagram:
+              type: string
+            tiktok:
+              type: string
+        deposit:
+          type: object
+          properties:
+            percent:
+              type: number
+              format: float
+              minimum: 0
+              maximum: 100
+            minimum:
+              type: number
+              format: float
+              minimum: 0
+        hours:
+          type: object
+          properties:
+            open:
+              type: string
+              pattern: '^\d{2}:\d{2}$'
+            close:
+              type: string
+              pattern: '^\d{2}:\d{2}$'
+            daysOpen:
+              type: array
+              items:
+                type: string
+        policies:
+          type: object
+          properties:
+            cancellationHours:
+              type: integer
+              minimum: 0
+            lateArrivalMinutes:
+              type: integer
+              minimum: 0
+
+    UploadResponse:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          description: Public URL of uploaded file
+          example: https://cdn.sallybraids.ca/images/logo-v2.jpg
+        filename:
+          type: string
+          example: logo-v2.jpg
+        size:
+          type: integer
+          description: File size in bytes
+          example: 245678
+        mimeType:
+          type: string
+          example: image/jpeg
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              description: Human-readable error message
+              example: Validation failed for one or more fields
+            details:
+              type: object
+              description: Additional error context
+              additionalProperties: true
+              example:
+                fields:
+                  email: Invalid email format
+                  phone: Phone number is required
+
+  responses:
+    UnauthorizedError:
+      description: Authentication required or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Authentication required. Please provide a valid access token.
+
+    BadRequestError:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: BAD_REQUEST
+              message: Invalid request parameters
+              details:
+                invalidParam: date
+
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Validation failed
+              details:
+                fields:
+                  email: Invalid email format
+                  price: Must be a positive number
+
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: NOT_FOUND
+              message: The requested resource was not found
+              details:
+                resourceType: booking
+                resourceId: booking-invalid
+
+    FileTooLargeError:
+      description: Uploaded file exceeds size limit
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: FILE_TOO_LARGE
+              message: File size exceeds maximum allowed (10MB)
+              details:
+                maxSize: 10485760
+                actualSize: 15728640
+
+    UnsupportedMediaTypeError:
+      description: Uploaded file type not supported
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: UNSUPPORTED_MEDIA_TYPE
+              message: File type not supported. Allowed types are JPG, PNG
+              details:
+                allowedTypes:
+                  - image/jpeg
+                  - image/png
+
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: INTERNAL_SERVER_ERROR
+              message: An unexpected error occurred. Please try again later.
