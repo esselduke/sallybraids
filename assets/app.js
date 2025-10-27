@@ -968,26 +968,33 @@
       });
     }
 
-    // Smooth scroll for nav links
-    navLinks.forEach(link => {
-      link.addEventListener('click', (e) => {
-        const href = link.getAttribute('href');
-        if (href.startsWith('#')) {
-          e.preventDefault();
-          smoothScroll(href);
-          
-          // Close mobile menu
-          if (hamburger && nav) {
-            hamburger.setAttribute('aria-expanded', 'false');
-            nav.setAttribute('aria-hidden', 'true');
-          }
-          
-          // Update active state
-          navLinks.forEach(l => l.classList.remove('active'));
-          link.classList.add('active');
-        }
-      });
-    });
+navLinks.forEach(link => {
+  link.addEventListener('click', (e) => {
+    const href = link.getAttribute('href') || '';
+    if (!href.startsWith('#')) return;
+
+    e.preventDefault();
+
+    // Special case: Make the Booking nav item open the modal
+    if (href === '#booking') {
+      openBookingModal();
+    } else {
+      smoothScroll(href);
+    }
+
+    // Close mobile menu if it’s open
+    if (hamburger && nav) {
+      hamburger.setAttribute('aria-expanded', 'false');
+      nav.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    // Active state
+    navLinks.forEach(l => l.classList.remove('active'));
+    link.classList.add('active');
+  });
+});
+
 
     // Update active nav on scroll
     window.addEventListener('scroll', updateActiveNav);
