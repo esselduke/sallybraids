@@ -1161,6 +1161,12 @@ textarea.form-control {
   max-height: 1000px;
 }
 
+/* ADD: open state so content expands even if HTML structure wraps the button */
+.accordion-content.open {
+  max-height: 1000px;
+}
+
+
 .accordion-body {
   padding: 0 var(--space-5) var(--space-5);
   color: #525252;

@@ -1091,25 +1091,40 @@
   /**
    * Initialize accordion
    */
-  function initAccordion() {
-    const accordionButtons = document.querySelectorAll('.accordion-button');
-    
-    accordionButtons.forEach(button => {
-      button.addEventListener('click', () => {
-        const isExpanded = button.getAttribute('aria-expanded') === 'true';
-        
-        // Close all others (optional: remove for multi-open)
-        accordionButtons.forEach(btn => {
-          if (btn !== button) {
-            btn.setAttribute('aria-expanded', 'false');
+function initAccordion() {
+  const items = document.querySelectorAll('.accordion-item');
+
+  items.forEach(item => {
+    const button = item.querySelector('.accordion-button');
+    const content = item.querySelector('.accordion-content');
+    if (!button || !content) return;
+
+    // start collapsed
+    button.setAttribute('aria-expanded', 'false');
+    content.classList.remove('open');
+
+    button.addEventListener('click', () => {
+      const isOpen = button.getAttribute('aria-expanded') === 'true';
+
+      // close all others (single-open behavior)
+      items.forEach(other => {
+        if (other !== item) {
+          const ob = other.querySelector('.accordion-button');
+          const oc = other.querySelector('.accordion-content');
+          if (ob && oc) {
+            ob.setAttribute('aria-expanded', 'false');
+            oc.classList.remove('open');
           }
-        });
-        
-        // Toggle current
-        button.setAttribute('aria-expanded', !isExpanded);
+        }
       });
+
+      // toggle current
+      button.setAttribute('aria-expanded', String(!isOpen));
+      content.classList.toggle('open', !isOpen);
     });
-  }
+  });
+}
+
 
   /**
    * Show mock mode banner if API not connected
