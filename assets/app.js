@@ -959,42 +959,74 @@
     const nav = document.getElementById('main-nav');
     const navLinks = document.querySelectorAll('.nav-link');
 
+    // FORCE initial state on page load
+    if (nav) {
+      if (window.innerWidth <= 1024) {
+        nav.setAttribute('aria-hidden', 'true');
+      } else {
+        nav.removeAttribute('aria-hidden');
+      }
+    }
+
     // Hamburger toggle
     if (hamburger && nav) {
       hamburger.addEventListener('click', () => {
         const isExpanded = hamburger.getAttribute('aria-expanded') === 'true';
         hamburger.setAttribute('aria-expanded', !isExpanded);
         nav.setAttribute('aria-hidden', isExpanded);
+        
+        // Lock body scroll on mobile
+        if (!isExpanded) {
+          document.body.style.overflow = 'hidden';
+        } else {
+          document.body.style.overflow = '';
+        }
       });
     }
 
-navLinks.forEach(link => {
-  link.addEventListener('click', (e) => {
-    const href = link.getAttribute('href') || '';
-    if (!href.startsWith('#')) return;
+    navLinks.forEach(link => {
+      link.addEventListener('click', (e) => {
+        const href = link.getAttribute('href') || '';
+        if (!href.startsWith('#')) return;
 
-    e.preventDefault();
+        e.preventDefault();
 
-    // Special case: Make the Booking nav item open the modal
-    if (href === '#booking') {
-      openBookingModal();
-    } else {
-      smoothScroll(href);
-    }
+        // Special case: Make the Booking nav item open the modal
+        if (href === '#booking') {
+          openBookingModal();
+        } else {
+          smoothScroll(href);
+        }
 
-    // Close mobile menu if it’s open
-    if (hamburger && nav) {
-      hamburger.setAttribute('aria-expanded', 'false');
-      nav.setAttribute('aria-hidden', 'true');
-      document.body.style.overflow = '';
-    }
+        // Close mobile menu if it's open
+        if (hamburger && nav) {
+          hamburger.setAttribute('aria-expanded', 'false');
+          nav.setAttribute('aria-hidden', 'true');
+          document.body.style.overflow = '';
+        }
 
-    // Active state
-    navLinks.forEach(l => l.classList.remove('active'));
-    link.classList.add('active');
-  });
-});
+        // Active state
+        navLinks.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+      });
+    });
 
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      if (nav) {
+        if (window.innerWidth > 1024) {
+          nav.removeAttribute('aria-hidden');
+          document.body.style.overflow = '';
+        } else {
+          if (hamburger && hamburger.getAttribute('aria-expanded') !== 'true') {
+            nav.setAttribute('aria-hidden', 'true');
+          }
+        }
+      }
+      if (hamburger && window.innerWidth > 1024) {
+        hamburger.setAttribute('aria-expanded', 'false');
+      }
+    });
 
     // Update active nav on scroll
     window.addEventListener('scroll', updateActiveNav);
