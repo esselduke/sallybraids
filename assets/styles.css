@@ -1506,22 +1506,22 @@ textarea.form-control {
 }
 
 /* === MOBILE MENU FIX - ABSOLUTE PRIORITY === */
-@media (max-width: 1024px) {
+/* @media (max-width: 1024px) {
   .hamburger {
     display: block !important;
   }
   
   .main-nav {
-    position: fixed;
-    top: 70px;
-    right: 0;
-    bottom: 0;
-    width: 280px;
-    background-color: #ffff00; /* YELLOW - change to #ffffff when it works */
-    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
-    z-index: 99999;
-    overflow-y: auto;
-    transition: transform 0.3s ease;
+    position: fixed !important;
+    top: 70px !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 280px !important;
+    background-color: #ffff00 !important;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3) !important;
+    z-index: 99999 !important;
+    overflow-y: auto !important;
+    transition: transform 0.3s ease !important;
   }
   
   .main-nav[aria-hidden="true"] {
@@ -1545,4 +1545,4 @@ textarea.form-control {
     font-size: 18px !important;
     color: #000 !important;
   }
-}
+} */
