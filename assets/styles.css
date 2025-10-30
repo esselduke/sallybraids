@@ -343,7 +343,7 @@ button:focus-visible {
     top: 70px;
     right: 0;
     bottom: 0;
-    width: 280px;
+    width: 100%;
     background-color: var(--bg);
     box-shadow: var(--shadow-xl);
     transform: translateX(100%);
