@@ -343,7 +343,6 @@ button:focus-visible {
     top: 70px;
     right: 0;
     left: 0;
-    /* bottom: 0; */
     width: 100%;
     background-color: var(--bg);
     box-shadow: var(--shadow-xl);
@@ -356,16 +355,32 @@ button:focus-visible {
     transform: translateX(0);
   }
   
-  .nav-list {
+.nav-list {
     flex-direction: column;
-    align-items: stretch;
+    align-items: center;
     gap: 0;
-    padding: var(--space-6);
+    padding: 0;
+    height: 100%;
+    display: flex;
+    justify-content: space-evenly;
+    max-width: 280px;
+    margin: 0 auto;
+  }
+
+    .nav-list li {
+    flex: 1;
+    display: flex;
+    margin-top: 50%;
   }
   
-  .nav-link {
-    padding: var(--space-4);
+.nav-link {
+    padding: var(--space-6) var(--space-4);
     border-bottom: 1px solid var(--border);
+    width: 100%;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 }
 
