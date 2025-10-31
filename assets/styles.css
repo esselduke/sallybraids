@@ -370,7 +370,7 @@ button:focus-visible {
     .nav-list li {
     flex: 1;
     display: flex;
-    margin-top: 50%;
+    margin-top: 0 !important;
   }
   
 .nav-link {
