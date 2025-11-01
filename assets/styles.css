@@ -89,6 +89,14 @@
   padding: 0;
 }
 
+/* add near top of your CSS */
+html, body {
+  overflow-x: hidden;               /* prevent any horizontal scroll */
+  overscroll-behavior-x: none;      /* avoid horizontal bounce/overscroll */
+  touch-action: pan-y;              /* allow only vertical panning by default */
+}
+
+
 html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
@@ -1519,45 +1527,3 @@ textarea.form-control {
     max-width: 100%;
   }
 }
-
-/* === MOBILE MENU FIX - ABSOLUTE PRIORITY === */
-/* @media (max-width: 1024px) {
-  .hamburger {
-    display: block !important;
-  }
-  
-  .main-nav {
-    position: fixed !important;
-    top: 70px !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: 280px !important;
-    background-color: #ffff00 !important;
-    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3) !important;
-    z-index: 99999 !important;
-    overflow-y: auto !important;
-    transition: transform 0.3s ease !important;
-  }
-  
-  .main-nav[aria-hidden="true"] {
-    transform: translateX(100%) !important;
-  }
-  
-  .main-nav[aria-hidden="false"] {
-    transform: translateX(0) !important;
-  }
-  
-  .nav-list {
-    flex-direction: column !important;
-    gap: 0 !important;
-    padding: 24px !important;
-  }
-  
-  .nav-link {
-    display: block !important;
-    padding: 16px !important;
-    border-bottom: 1px solid #000 !important;
-    font-size: 18px !important;
-    color: #000 !important;
-  }
-} */
